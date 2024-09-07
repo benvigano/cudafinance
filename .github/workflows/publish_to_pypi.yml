@@ -1,0 +1,75 @@
+name: Build, Test, and Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build-test-and-publish:
+    runs-on: ubuntu-latest
+    container:
+      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python environment
+      run: |
+        apt-get update
+        apt-get install -y python3 python3-pip build-essential
+        ln -s /usr/bin/python3 /usr/bin/python
+        python --version
+        pip3 --version
+
+    - name: Install Python Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel pybind11 numpy pytest
+
+    - name: Verify pybind11 installation
+      run: |
+        python -c "import pybind11; print(pybind11.get_include())"
+        ls $(python -c "import pybind11; print(pybind11.get_include())")
+
+    - name: Set CUDA environment variables
+      run: |
+        echo "CUDA_HOME=/usr/local/cuda" >> $GITHUB_ENV
+        echo "/usr/local/cuda/bin" >> $GITHUB_PATH
+
+    - name: Debug - Print CUDA information
+      run: |
+        nvcc --version
+        ls -l /usr/local/cuda
+        ls -l /usr/local/cuda/include
+        ls -l /usr/local/cuda/lib64
+
+    - name: Build the package with verbose output
+      run: |
+        export CUDA_HOME=/usr/local/cuda
+        export PATH=$PATH:$CUDA_HOME/bin
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CUDA_HOME/lib64
+        python setup.py build_ext --inplace -v
+      env:
+        CFLAGS: "-v"
+        LDFLAGS: "-v"
+
+    - name: Debug - Print build directory contents
+      run: |
+        find ./build -type f
+        find ./src -type f
+
+    - name: Debug - Check shared library dependencies
+      run: |
+        ldd ./build/lib.*/cudafinance/cuda_module.*.so
+
+    - name: Build distribution
+      run: |
+        python setup.py sdist bdist_wheel
+
+    - name: Publish to PyPI
+      if: success()
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
