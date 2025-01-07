@@ -39,3 +39,32 @@ void launchSMA_CUDA(const float* h_input, float* h_output, int numElements, int 
     CUDA_CHECK(cudaFree(d_input));
     CUDA_CHECK(cudaFree(d_output));
 }
+
+__global__ void computeMomentum(const float *input, float *output, int numElements, int windowSize) {
+    int i = blockDim.x * blockIdx.x + threadIdx.x;
+    if (i < numElements) {
+        if (i >= windowSize) {
+            output[i] = input[i] - input[i - windowSize];
+        } else {
+            output[i] = 0.0f;  // Default to zero for indices without enough history
+        }
+    }
+}
+
+void launchMomentum_CUDA(const float* h_input, float* h_output, int numElements, int windowSize) {
+    float *d_input = NULL, *d_output = NULL;
+    CUDA_CHECK(cudaMalloc((void **)&d_input, numElements * sizeof(float)));
+    CUDA_CHECK(cudaMalloc((void **)&d_output, numElements * sizeof(float)));
+
+    CUDA_CHECK(cudaMemcpy(d_input, h_input, numElements * sizeof(float), cudaMemcpyHostToDevice));
+
+    int threadsPerBlock = 256;
+    int blocksPerGrid = (numElements + threadsPerBlock - 1) / threadsPerBlock;
+    computeMomentum<<<blocksPerGrid, threadsPerBlock>>>(d_input, d_output, numElements, windowSize);
+    CUDA_CHECK(cudaDeviceSynchronize());
+
+    CUDA_CHECK(cudaMemcpy(h_output, d_output, numElements * sizeof(float), cudaMemcpyDeviceToHost));
+
+    CUDA_CHECK(cudaFree(d_input));
+    CUDA_CHECK(cudaFree(d_output));
+}
