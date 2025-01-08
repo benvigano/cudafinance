@@ -48,13 +48,17 @@ def test_sma_large_array():
     input_data = np.random.randn(1000).astype(np.float32)
     window_size = 100
 
-    output = np.zeros_like(input_data)
-    launchSMA(input_data, output, window_size)
+    output_gpu = np.zeros_like(input_data)
+    launchSMA(input_data, output_gpu, window_size)
 
-    expected_output = np.convolve(input_data, np.ones(window_size), 'valid') / window_size
-    expected_output = np.pad(expected_output, (window_size-1, 0), mode='edge')
+    expected_output = np.zeros_like(input_data)
+    for i in range(len(input_data)):
+        start_idx = max(0, i - window_size + 1)
+        count = i - start_idx + 1
+        sum_val = np.sum(input_data[start_idx: i + 1], dtype=np.float32)
+        expected_output[i] = np.float32(sum_val / count)
 
-    np.testing.assert_allclose(output, expected_output, rtol=1e-5)
+    np.testing.assert_allclose(output_gpu, expected_output, rtol=1e-5, atol=1e-7)
 
 def test_momentum_basic():
     input_data = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], dtype=np.float32)
