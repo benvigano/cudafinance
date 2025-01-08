@@ -22,6 +22,12 @@ Cudafinance is a Python package built on top of CUDA. It leverages GPU accelerat
   ```
 - Build: `python3 setup.py build_ext --inplace`
 - Test: `pytest tests/`
+## Benchmarking
+<p align="start">
+    <img src="https://github.com/user-attachments/assets/44671072-0efc-400d-a5a1-1c2507ce35c2" alt="Home page screen capture" style="width: 500px; height: auto;">
+</p>
+- 20x speed compared to Pandas implementation (already optimized with Cython and cumulative sums).
+
 ## Support
 ### FIR filters
 Cudafinance currently **only includes indicators that are FIR filters (Finite Impulse Response)**. This is due to the parallelizable nature of FIR filters, given their dependency on a finite number of input samples.
